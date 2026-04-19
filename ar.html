@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>AR Tenun Songket</title>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.rawgit.com/jeromeetienne/AR.js/1.7.2/aframe/build/aframe-ar.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script>
+    AFRAME.registerComponent('auto-rotate', {
+      schema: { speed: { type: 'number', default: 0.2 } },
+      tick: function (time, timeDelta) {
+        let rotation = this.el.getAttribute('rotation');
+        rotation.y += this.data.speed * (timeDelta / 16);
+        this.el.setAttribute('rotation', rotation);
+      }
+    });
+
+    AFRAME.registerComponent('drag-rotate', {
+      schema: { speed: { default: 1 } },
+      init: function () {
+        this.el.sceneEl.addEventListener('mousedown', this.startDrag.bind(this));
+        this.el.sceneEl.addEventListener('mousemove', this.drag.bind(this));
+        this.el.sceneEl.addEventListener('mouseup', this.stopDrag.bind(this));
+        this.el.sceneEl.addEventListener('touchstart', this.startDrag.bind(this));
+        this.el.sceneEl.addEventListener('touchmove', this.drag.bind(this));
+        this.el.sceneEl.addEventListener('touchend', this.stopDrag.bind(this));
+        this.isDragging = false;
+        this.previousMouseEvent = null;
+      },
+      startDrag: function (e) {
+        this.isDragging = true;
+        this.previousMouseEvent = e.type.startsWith("touch") ? e.touches[0] : e;
+      },
+      drag: function (e) {
+        if (!this.isDragging) return;
+        const clientX = e.type.startsWith("touch") ? e.touches[0].clientX : e.clientX;
+        const deltaX = clientX - (this.previousMouseEvent?.clientX || clientX);
+        const rotation = this.el.getAttribute("rotation");
+        this.el.setAttribute("rotation", {
+          x: rotation.x,
+          y: rotation.y - deltaX * this.data.speed,
+          z: rotation.z
+        });
+        this.previousMouseEvent = { clientX };
+      },
+      stopDrag: function () {
+        this.isDragging = false;
+        this.previousMouseEvent = null;
+      }
+    });
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body,
+    html {
+      overflow: hidden;
+      height: 100%;
+      font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    #ui-overlay {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      gap: 10px;
+      width: 95%;
+      max-width: 500px;
+      z-index: 10;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 20px;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      overflow-x: auto;
+    }
+
+    /* Button Styles (Square Rounded) */
+    .ar-btn {
+      flex: 0 0 auto;
+      width: 65px;
+      height: 65px;
+      padding: 0;
+      border: none;
+      border-radius: 16px;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ar-btn img {
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .ar-btn:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .ar-btn:hover img {
+      transform: scale(1.1);
+    }
+
+    .ar-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Modern Info Box Styles */
+    .info-box {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      padding: 25px;
+      width: 90%;
+      max-width: 350px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      z-index: 15;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-align: center;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      opacity: 0;
+      backdrop-filter: blur(10px);
+    }
+
+    .info-box.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+
+    .info-box img.popup-motif-img {
+      width: 120px;
+      height: 120px;
+      border-radius: 16px;
+      object-fit: cover;
+      margin: 0 auto 15px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .info-box h2 {
+      margin: 0 0 10px;
+      font-size: 1.4rem;
+      color: #5D4037;
+      font-weight: 700;
+      position: relative;
+      padding-bottom: 10px;
+    }
+
+    .info-box h2:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(90deg, #8B4513, #D2691E);
+      border-radius: 3px;
+    }
+
+    .info-box p {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      color: #444;
+      text-align: justify;
+    }
+
+    .btn-kembali {
+      background: linear-gradient(135deg, #8B4513, #A0522D);
+      color: white;
+      font-weight: 600;
+      border: none;
+      padding: 10px 30px;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(139, 69, 19, 0.3);
+      font-size: 1rem;
+    }
+
+    .btn-kembali:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(139, 69, 19, 0.4);
+    }
+
+    .btn-kembali:active {
+      transform: translateY(0);
+    }
+
+    .info-box.show~#ui-overlay {
+      opacity: 0.5;
+      filter: blur(2px);
+      transition: opacity 0.3s ease, filter 0.3s ease;
+    }
+
+    @media (max-width: 400px) {
+      .ar-btn {
+        width: 55px;
+        height: 55px;
+      }
+
+      .info-box {
+        padding: 20px;
+        width: 90%;
+      }
+
+      .info-box h2 {
+        font-size: 1.2rem;
+      }
+
+      .info-box p {
+        font-size: 0.85rem;
+      }
+
+      .info-box img.popup-motif-img {
+        width: 100px;
+        height: 100px;
+      }
+    }
+  </style>
+
+</head>
+
+<body>
+  <div id="ui-overlay" style="display: none;">
+    <button class="ar-btn" data-index="0">
+      <img src="asset/img/motif/1.jpg" alt="Motif 1">
+    </button>
+    <button class="ar-btn" data-index="1">
+      <img src="asset/img/motif/2.jpg" alt="Motif 2">
+    </button>
+    <button class="ar-btn" data-index="2">
+      <img src="asset/img/motif/3.jpg" alt="Motif 3">
+    </button>
+    <button class="ar-btn" data-index="3">
+      <img src="asset/img/motif/4.jpg" alt="Motif 4">
+    </button>
+    <button class="ar-btn" data-index="4">
+      <img src="asset/img/motif/5.jpg" alt="Motif 5">
+    </button>
+  </div>
+
+  <!-- Dynamic Info Box -->
+  <div class="info-box" id="info-box">
+    <img id="popup-img" class="popup-motif-img" src="" alt="Motif">
+    <h2 id="popup-title">Nama Motif</h2>
+    <p id="popup-desc">Sejarah motif</p>
+    <button class="btn-kembali" id="btn-kembali">Kembali</button>
+  </div>
+
+  <!-- A-Frame AR Scene -->
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-marker type='pattern' url='asset/marker/logo.patt' id="marker">
+      <a-gltf-model src="asset/model/songket.glb" position="0 0 0" scale="1 1 1" drag-rotate="speed: 1 "
+        id="songket-model"
+        animation__show="property: scale; to: 1 1 1; dur: 600; easing: easeOutElastic; startEvents: show-model"
+        animation__slidein="property: position; to: 0 0 0; dur: 600; easing: easeOutElastic; startEvents: show-model"
+        animation__hide="property: scale; to: 1 1 1; dur: 300; easing: easeInSine; startEvents: hide-model"
+        animation__slideout="property: position; to: 0 -2 0; dur: 300; easing: easeInSine; startEvents: hide-model">
+      </a-gltf-model>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
